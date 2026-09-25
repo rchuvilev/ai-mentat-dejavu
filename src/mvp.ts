@@ -152,6 +152,19 @@ async function refreshModels() {
   sel.innerHTML = models.map(m =>
     `<option value="${m.id}"${activeModel?.rec.id === m.id ? ' selected' : ''}>` +
     `${m.extractor} · ${pct(m.metrics.test)} · ${m.dim}-d · ${new Date(m.createdAt).toLocaleTimeString()}</option>`).join('');
+  // With nothing stored, the select renders as an empty void and Load / Export
+  // JSON / Delete stay enabled — three primary-looking actions that can only
+  // fail, next to a line that already says "0 model(s)". Reflect the real state
+  // in the controls instead of only in the caption.
+  const empty = models.length === 0;
+  if (empty) sel.innerHTML = '<option value="" disabled selected>no models stored yet</option>';
+  sel.disabled = empty;
+  for (const id of ['load', 'export', 'del']) {
+    const b = $<HTMLButtonElement>(id);
+    b.disabled = empty;
+    b.title = empty ? 'Train and save a model first' : '';
+  }
+
   const u = await store.usage();
   $('usage').textContent =
     `${u.models} model(s), ${u.events} event(s), ~${(u.bytes / 1024).toFixed(1)} KB of weights`;
