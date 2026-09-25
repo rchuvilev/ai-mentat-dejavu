@@ -12,11 +12,17 @@
  *   GET  /*             -> static files
  */
 import { createServer } from 'node:http';
+import { pathToFileURL } from 'node:url';
 import { readFile, appendFile, open } from 'node:fs/promises';
 import { existsSync, readFileSync } from 'node:fs';
-import { join, extname, normalize } from 'node:path';
+import { join, extname, normalize, sep, resolve } from 'node:path';
 
-const ROOT = process.argv[3] ?? process.cwd();
+// Resolved, not taken as given. The containment check compares the joined
+// path against ROOT, and join('.', 'index.html') is 'index.html', which does
+// not start with '.' — so a RELATIVE root rejected every request with 403.
+// Both npm scripts pass one ('serve' passes '.', 'site' passes 'site'), so the
+// static server has never served a file from either.
+const ROOT = resolve(process.argv[3] ?? process.cwd());
 const PORT = +(process.argv[2] ?? 8772);
 const CACHE = join(ROOT, 'emb_cache.jsonl');
 
@@ -39,6 +45,34 @@ function loadKeys(): string[] {
 
 // Serialise appends: concurrent POSTs could otherwise interleave partial lines.
 let writeChain: Promise<unknown> = Promise.resolve();
+
+/**
+ * Resolve a request URL to a file inside `root`, or null when it escapes.
+ *
+ * Exported so the traversal defence is testable: the server itself listens at
+ * module scope, so nothing in this file could be exercised without opening a
+ * socket.
+ *
+ * Two things here are load-bearing:
+ *
+ *  1. decodeURIComponent THROWS on a malformed escape — `GET /%` is enough.
+ *     Inside the request handler that was an uncaught exception, so any client
+ *     could stop the server with one request. A bad escape is now just a 403.
+ *
+ *  2. The containment check compares against `root + sep`, not `root`. A bare
+ *     startsWith(root) also accepts a SIBLING whose name merely begins with it
+ *     — with root `/srv/site`, the path `/srv/sitemap/secret` passes. Stripping
+ *     leading `../` happens to prevent that today, which is exactly why the
+ *     weaker check survived: it was never the thing doing the work.
+ */
+export function resolveStaticPath(root: string, url: string): string | null {
+  let decoded: string;
+  try { decoded = decodeURIComponent(url); } catch { return null; }
+  const rel = normalize(decoded).replace(/^(\.\.[/\\])+/, '');
+  const path = join(root, rel === '/' ? 'index.html' : rel);
+  const base = root.endsWith(sep) ? root : root + sep;
+  return path.startsWith(base) ? path : null;
+}
 
 const server = createServer((req, res) => {
   const url = (req.url ?? '/').split('?')[0];
@@ -87,9 +121,8 @@ const server = createServer((req, res) => {
   }
 
   // ---- static files, with traversal guard
-  const rel = normalize(decodeURIComponent(url)).replace(/^(\.\.[/\\])+/, '');
-  const path = join(ROOT, rel === '/' ? 'index.html' : rel);
-  if (!path.startsWith(ROOT)) { res.writeHead(403); return res.end('forbidden'); }
+  const path = resolveStaticPath(ROOT, url);
+  if (path === null) { res.writeHead(403); return res.end('forbidden'); }
   readFile(path).then(buf => {
     res.writeHead(200, {
       'Content-Type': MIME[extname(path)] ?? 'application/octet-stream',
@@ -99,7 +132,12 @@ const server = createServer((req, res) => {
   }).catch(() => { res.writeHead(404); res.end('not found'); });
 });
 
-server.listen(PORT, '127.0.0.1', () => {
-  console.log(`serving ${ROOT} on http://127.0.0.1:${PORT}`);
-  console.log(`cache   ${CACHE} (${loadKeys().length} records)`);
-});
+// Only listen when run as a script, so the helpers above are importable — and
+// therefore testable — without opening a socket. Same rule as the SDK's
+// bundle-electron.js.
+if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
+  server.listen(PORT, '127.0.0.1', () => {
+    console.log(`serving ${ROOT} on http://127.0.0.1:${PORT}`);
+    console.log(`cache   ${CACHE} (${loadKeys().length} records)`);
+  });
+}
