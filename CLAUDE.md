@@ -19,7 +19,8 @@ JavaScript, Python, TypeScript
 
 ```sh
 npm run build        # tsc
-npm run test         # node dist/test.js && node dist/test_actions.js
+npm run test         # 258 assertions across 8 suites (needs a build first)
+npm run test:build   # build, then test — use this after editing src/
 npm run cli          # node dist/cli.js
 npm run serve        # node dist/server.js 8772 .
 npm run site         # tsc && mkdir -p site/dist && cp dist/*.js site/dist/ && node
@@ -50,6 +51,20 @@ could not catch a future regression.
 
 Fixed 2026-08-30: `test` now chains all five plus `test_failsafe`.
 **228 assertions.**
+
+Extended 2026-09-25 with two suites for the modules that had none:
+
+- `test_exporter` — `exportScript()` writes a file the user downloads and runs
+  elsewhere, so every way it can be wrong is silent here. The test writes the
+  output and `import()`s it, which is the only proof the generated module
+  loads at all.
+- `test_server` — the static server's path resolution. It had no coverage
+  because nothing could be called: the module opened a socket at import time.
+  Covering it surfaced three defects — a malformed escape crashed the server,
+  a relative root rejected every request (both npm scripts pass one), and
+  containment compared against the root without a separator.
+
+**258 assertions across 8 suites.**
 
 ⚠️ A test file that is not named in the `test` script is invisible. When adding
 a suite, add it to `package.json` — `tsc` compiling it is not enough.
