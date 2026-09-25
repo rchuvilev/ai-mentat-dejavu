@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Resumable DINOv2 embedding run</title>
+<style>body{background:#0d1117;color:#c9d1d9;font:13px/1.6 ui-monospace,monospace;padding:12px}
+#o{white-space:pre-wrap}.g{color:#3fb950}.r{color:#f85149}.o{color:#f0883e}.b{color:#58a6ff}</style></head>
+<body><div id="o">starting…</div>
+<script type="module">
+// Resumable embedding pass. Every vector is POSTed to /cache/put immediately,
+// so an interruption costs at most one image. Dataset keys are deterministic
+// (seeded RNG) so a cached vector always matches the image it came from.
+// Uses the SAME shared TS modules as the CLI and the main app.
+import { makeDataset, CLASSES } from '../dist/dataset.js';
+
+const O = document.getElementById('o');
+const say = (m, c) => { O.innerHTML += `\n${c ? `<span class=${c}>${m}</span>` : m}`;
+  window.__l = (window.__l || []).concat(m); };
+window.__done = false; window.__prog = 'init';
+
+const mk = (w, h) => { const cv = document.createElement('canvas');
+  cv.width = w; cv.height = h; return cv; };
+
+try {
+  const T = await import('../transformers.web.js');
+  const { env, AutoModel, AutoProcessor, RawImage } = T;
+  env.allowLocalModels = true;
+  env.localModelPath = '/models/';
+  env.allowRemoteModels = false;
+  env.backends.onnx.wasm.numThreads = 1;
+
+  const N_TRAIN = 30, N_TEST = 12;
+  const st = await (await fetch('/cache/status')).json();
+  const have = new Set(st.keys);
+  say(`cache already holds ${st.count} embeddings`, st.count ? 'g' : '');
+
+  const items = makeDataset(mk, N_TRAIN, N_TEST);
+  say(`dataset rebuilt: ${items.length} images`);
+
+  const todo = items.filter(it => !have.has(it.key));
+  say(`${todo.length} left to embed`, todo.length ? 'o' : 'g');
+  window.__prog = `${items.length - todo.length}/${items.length}`;
+
+  if (todo.length) {
+    const t0 = performance.now();
+    const model = await AutoModel.from_pretrained('dinov2-small', { dtype: 'q8', device: 'wasm' });
+    const proc = await AutoProcessor.from_pretrained('dinov2-small');
+    say(`backbone loaded in ${((performance.now() - t0) / 1000).toFixed(1)}s`, 'g');
+
+    let done = items.length - todo.length;
+    for (const it of todo) {
+      const s = it.surface;
+      const d = s.getContext('2d').getImageData(0, 0, s.width, s.height);
+      const img = new RawImage(new Uint8ClampedArray(d.data), s.width, s.height, 4);
+      const o = await model(await proc(img));
+      const t = o.last_hidden_state, D = t.dims[2];
+      const vec = Array.from({ length: D }, (_, j) => +t.data[j].toFixed(5));  // CLS
+      await fetch('/cache/put', { method: 'POST',
+        body: JSON.stringify({ key: it.key, label: it.label, split: it.split, vec }) });
+      window.__prog = `${++done}/${items.length}`;
+      await new Promise(r => setTimeout(r, 0));   // yield: keeps the page pollable
+    }
+    say('all embeddings cached', 'g');
+  }
+  say('\nnow train the head:  node dist/cli.js --cache emb_cache.jsonl', 'b');
+  window.__done = true;
+} catch (e) {
+  say('FAILED: ' + (e.message || e), 'r');
+  window.__err = String(e.message || e);
+  window.__done = true;
+}
+</script></body></html>

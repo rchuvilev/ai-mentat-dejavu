@@ -1,0 +1,246 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>AI Déjà Vu — train, store, act</title>
+<link rel="manifest" href="manifest.webmanifest">
+<meta name="theme-color" content="#58a6ff">
+<meta name="description" content="Train an image classifier in your browser, store it in IndexedDB, and fire webhook or console actions on every match.">
+<style>
+:root{--bg:#0d1117;--card:#161b22;--line:#30363d;--tx:#c9d1d9;--dim:#8b949e;
+      --blue:#58a6ff;--grn:#3fb950;--red:#f85149;--org:#f0883e}
+*{box-sizing:border-box}
+body{margin:0 auto;max-width:960px;background:var(--bg);color:var(--tx);padding:18px 14px 70px;
+ font:15px/1.6 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif}
+h1{font-size:23px;margin:.1em 0 .05em;letter-spacing:-.5px}
+h2{font-size:15px;margin:1.7em 0 .55em;padding-bottom:.3em;border-bottom:1px solid var(--line);
+ color:#fff;text-transform:uppercase;letter-spacing:.6px;font-weight:600}
+.sub{color:var(--dim);font-size:13px;margin-bottom:.4em}
+.card{background:var(--card);border:1px solid var(--line);border-radius:11px;padding:13px 14px;margin:11px 0}
+.g{color:var(--grn)}.r{color:var(--red)}.b{color:var(--blue)}.o{color:var(--org)}.dim{color:var(--dim)}
+button{background:var(--blue);border:0;color:#05080c;padding:9px 15px;border-radius:8px;
+ font-size:13.5px;font-weight:600;cursor:pointer}
+button.sec{background:#21262d;color:var(--tx);border:1px solid var(--line);font-weight:500}
+button:disabled{background:#21262d;color:var(--dim);cursor:default}
+select,input[type=text],input[type=number]{background:#0d1117;border:1px solid var(--line);
+ color:var(--tx);border-radius:6px;padding:6px 8px;font-size:13px}
+input[type=text]{width:100%}
+input[type=number]{width:66px}
+input[type=range]{accent-color:var(--blue);vertical-align:middle}
+label{font-size:12.5px;color:var(--dim)}
+.row{display:flex;gap:9px;align-items:center;flex-wrap:wrap}
+.grid2{display:grid;gap:11px;grid-template-columns:repeat(auto-fit,minmax(230px,1fr))}
+#log{font:11.5px/1.55 ui-monospace,Menlo,monospace;white-space:pre-wrap;background:#010409;
+ border:1px solid var(--line);border-radius:9px;padding:10px;max-height:170px;overflow-y:auto}
+table{width:100%;border-collapse:collapse;font-size:12.5px}
+th,td{text-align:left;padding:5px 6px;border-bottom:1px solid var(--line)}
+th{color:var(--dim);font-size:10.5px;text-transform:uppercase;letter-spacing:.4px}
+.kpis{display:grid;gap:8px;grid-template-columns:repeat(4,1fr);margin-bottom:8px}
+.kpi{background:#0d1117;border:1px solid var(--line);border-radius:8px;padding:9px;text-align:center}
+.kpi .n{font-size:18px;font-weight:700}.kpi .l{font-size:9px;color:var(--dim);letter-spacing:.3px}
+.checks{font:11px/1.6 ui-monospace,monospace;margin-top:8px}
+canvas#pad{border:1px solid var(--line);border-radius:8px;touch-action:none;background:#3c3c3c;
+ width:144px;height:144px}
+canvas#preview{border:1px solid var(--line);border-radius:8px;width:144px;height:144px;background:#3c3c3c}
+pre#payload{background:#010409;border:1px solid var(--line);border-radius:8px;padding:10px;
+ font:11px/1.5 ui-monospace,monospace;overflow-x:auto;max-height:230px;margin:0}
+code{background:#1f2630;padding:1.5px 5px;border-radius:4px;font-size:12px;font-family:ui-monospace,monospace}
+.pill{display:inline-block;font-size:10px;padding:2px 8px;border-radius:20px;
+ border:1px solid var(--line);color:var(--dim);margin-left:6px;vertical-align:middle}
+#targets{display:flex;gap:12px;flex-wrap:wrap}
+#targets label{color:var(--tx);font-size:13px}
+.cta{display:inline-block;background:var(--blue);color:#05080c;font-weight:600;
+ font-size:14px;padding:11px 16px;border-radius:8px;text-decoration:none;min-height:44px;
+ line-height:22px}
+.vhead{margin-bottom:8px}
+.bars{margin-top:10px;font:12px ui-monospace,monospace}
+.brow{display:flex;align-items:center;gap:8px;margin:5px 0}
+.bname{width:78px;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;color:var(--dim)}
+.brow.target .bname{color:var(--tx);font-weight:600}
+.btrack{position:relative;flex:1;height:14px;background:#21262d;border-radius:7px;overflow:hidden}
+.bfill{position:absolute;left:0;top:0;bottom:0;width:0;border-radius:7px;background:#3d4653;
+ transition:width .28s cubic-bezier(.4,0,.2,1),background-color .2s}
+.bfill.win{background:var(--blue)}
+.bfill.hit{background:var(--grn)}
+.bthr{position:absolute;top:-2px;bottom:-2px;width:2px;background:var(--org);opacity:.85}
+.bval{font-style:normal;color:var(--tx);width:52px;text-align:right;font-variant-numeric:tabular-nums}
+/* tap targets: scoped to real controls so overlays keep their own size */
+.row button,#train,#load,#export,#del,#classify,#clrPad,#clearEv,#sample{min-height:44px}
+select,input[type=text],input[type=number]{min-height:40px}
+</style></head><body>
+
+<h1>AI Déjà Vu <span class="pill">MVP</span></h1>
+<div class="sub">Train an image classifier in your browser. It's stored in
+<b>IndexedDB</b> and survives reloads. Every prediction fires a switchable
+<code>onMatched</code> / <code>onNotMatched</code> action — console, webhook, both or off.</div>
+<div class="sub">No server, no upload, no API key. Inference and training both run locally.</div>
+<div class="card" style="border-color:#58a6ff">
+  <b>Train on your own examples</b>
+  <div class="dim" style="font-size:13px;margin:5px 0 10px">Camera or image files for photos,
+  mic or audio files for sounds, your own labels, live inference with the same webhook actions.</div>
+  <a class="cta" href="studio.html">Open the Studio →</a>
+</div>
+
+<h2>1 · Train</h2>
+<div class="card">
+  <div class="row">
+    <label>extractor
+      <select id="extractor">
+        <option value="v2" selected>v2 rotation-invariant (26-d)</option>
+        <option value="v1">v1 absolute (224-d) — known-bad control</option>
+      </select>
+    </label>
+    <label>train/class <input type="number" id="nTrain" value="30" min="5" max="60"></label>
+    <label>test/class <input type="number" id="nTest" value="12" min="4" max="30"></label>
+    <button id="train">Train &amp; save</button>
+  </div>
+</div>
+<div class="card" id="metrics"><span class="dim">no model yet — train one above.</span></div>
+
+<h2>2 · Stored models <span class="pill">IndexedDB</span></h2>
+<div class="card">
+  <div class="row">
+    <select id="modelSel" style="flex:1;min-width:180px"></select>
+    <button id="load" class="sec">Load</button>
+    <button id="export" class="sec">Export JSON</button>
+    <button id="del" class="sec">Delete</button>
+  </div>
+  <div class="dim" id="usage" style="font-size:11.5px;margin-top:8px"></div>
+</div>
+
+<h2>3 · Match rule &amp; actions</h2>
+<div class="card">
+  <div class="grid2">
+    <div>
+      <label>match when predicted class is</label>
+      <div id="targets" style="margin:6px 0 10px"></div>
+      <label>and confidence ≥ <b id="thrLbl" class="b">70%</b></label>
+      <input type="range" id="thr" min="0" max="100" value="70" style="width:100%">
+      <label>cooldown per branch (ms)
+        <input type="number" id="cool" value="0" min="0" step="500"></label>
+    </div>
+    <div>
+      <label>onMatched
+        <select id="sinkM">
+          <option value="console" selected>console.log</option>
+          <option value="webhook">webhook</option>
+          <option value="both">both</option>
+          <option value="off">off</option>
+        </select></label>
+      <div style="height:8px"></div>
+      <label>onNotMatched
+        <select id="sinkN">
+          <option value="off" selected>off</option>
+          <option value="console">console.log</option>
+          <option value="webhook">webhook</option>
+          <option value="both">both</option>
+        </select></label>
+      <div style="height:10px"></div>
+      <label>webhook URL
+        <select id="hookMethod" style="margin-left:4px">
+          <option value="POST" selected>POST</option>
+          <option value="GET">GET</option>
+        </select></label>
+      <input type="text" id="hookUrl" placeholder="https://example.com/hook" style="margin-top:5px">
+      <div class="dim" style="font-size:11px;margin-top:5px">
+        Cross-origin endpoints need CORS. Failures are logged, never thrown.</div>
+    </div>
+  </div>
+</div>
+
+<h2>4 · Run inference</h2>
+<div class="card">
+  <div class="row" style="align-items:flex-start">
+    <div>
+      <div class="dim" style="font-size:11.5px;margin-bottom:5px">draw a shape</div>
+      <canvas id="pad" width="128" height="128"></canvas>
+      <div class="row" style="margin-top:7px">
+        <button id="classify" disabled>Classify</button>
+        <button id="clrPad" class="sec">Clear</button>
+      </div>
+    </div>
+    <div>
+      <div class="dim" style="font-size:11.5px;margin-bottom:5px">or use a generated sample</div>
+      <canvas id="preview" width="128" height="128"></canvas>
+      <div class="row" style="margin-top:7px">
+        <button id="sample" class="sec">Random sample</button>
+      </div>
+    </div>
+  </div>
+  <div id="verdict" style="margin-top:12px"><span class="dim">no prediction yet</span></div>
+</div>
+
+<div class="grid2">
+  <div>
+    <h2>Payload sent</h2>
+    <div class="card" style="padding:0;border:0"><pre id="payload">—</pre></div>
+  </div>
+  <div>
+    <h2>Event log <span class="pill">persisted</span></h2>
+    <div class="card">
+      <table><thead><tr><th>time</th><th>rule</th><th>class</th><th>conf</th><th>delivered</th></tr></thead>
+      <tbody id="events"></tbody></table>
+      <button id="clearEv" class="sec" style="margin-top:9px">Clear log</button>
+    </div>
+  </div>
+</div>
+
+<h2>Activity</h2>
+<div class="card"><div id="log">booting…</div></div>
+
+<h2>How it works</h2>
+<div class="card" style="font-size:13.5px">
+  <p style="margin:0 0 9px">A frozen feature extractor turns each image into a vector; a small
+  softmax head (81 parameters for v2) is the only thing trained. That's the Teachable
+  Machine architecture, and it's why the model is a few KB and fits in a database row.</p>
+  <p style="margin:0 0 9px"><b>v1 is included deliberately as a broken control.</b> It uses
+  absolute gradient orientation, so rotating a square moves its embedding further than
+  changing the shape does — within-class variation exceeds between-class separation and no
+  amount of training can fix it. v2 measures orientation relative to the shape's centroid
+  and scores ~52 points higher with <b>8.6× fewer dimensions</b>.</p>
+  <p style="margin:0"><b>Integrity checks run on every training.</b> The important one is that
+  shuffled labels must collapse to chance — with more features than samples, a head that
+  memorised noise would still score high on permuted labels. If that check fails, the
+  accuracy number is not trustworthy.</p>
+</div>
+
+<script type="module">
+import { boot } from './dist/mvp.js';
+boot().catch(e => {
+  document.getElementById('log').textContent = 'boot failed: ' + (e && e.message || e);
+});
+</script>
+
+<script>
+// Register the service worker. updateViaCache:'none' is essential — without it
+// the browser may serve sw.js itself from cache, the BUILD id never changes and
+// the whole busting scheme is inert.
+if ('serviceWorker' in navigator) {
+  addEventListener('load', () => {
+    navigator.serviceWorker.register('sw.js', { updateViaCache: 'none' })
+      .then(reg => {
+        // A new build is waiting: take over immediately rather than sitting
+        // behind until every tab closes.
+        reg.addEventListener('updatefound', () => {
+          const w = reg.installing;
+          if (!w) return;
+          w.addEventListener('statechange', () => {
+            if (w.state === 'installed' && navigator.serviceWorker.controller) {
+              w.postMessage('skipWaiting');
+            }
+          });
+        });
+        reg.update();
+      })
+      .catch(() => { /* SW is an enhancement; the app works without it */ });
+    // When the new worker takes control, reload ONCE so the page runs the
+    // freshly deployed modules.
+    let reloaded = false;
+    navigator.serviceWorker.addEventListener('controllerchange', () => {
+      if (reloaded) return;
+      reloaded = true;
+      location.reload();
+    });
+  });
+}
+</script>
+</body></html>

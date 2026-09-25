@@ -1,0 +1,94 @@
+{
+  "name": "ai-mentat-dejavu",
+  "version": "0.1.0",
+  "description": "Train an image classifier in the browser, persist it to IndexedDB, and fire webhook/console actions on match.",
+  "main": "electron-main.bundle.cjs",
+  "productName": "AI Déjà Vu",
+  "scripts": {
+    "start": "electron electron-main.cjs",
+    "build": "tsc",
+    "test": "node dist/test.js && node dist/test_actions.js && node dist/test_backbone.js && node dist/test_flow.js && node dist/test_media.js && node dist/test_failsafe.js",
+    "cli": "node dist/cli.js",
+    "serve": "node dist/server.js 8772 .",
+    "site": "tsc && mkdir -p site/dist && cp dist/*.js site/dist/ && node dist/server.js 8773 site",
+    "test:build": "npm run build && npm test",
+    "setup": "node scripts/setup.js",
+    "bundle": "node sdk/utils/bundle-electron.js",
+    "gui": "node sdk/utils/bundle-electron.js && electron electron-main.bundle.cjs",
+    "run": "npm run setup && node sdk/utils/bundle-electron.js && electron electron-main.bundle.cjs",
+    "check": "node scripts/build-app.js && node scripts/start-built.js",
+    "build:mac": "node sdk/utils/bundle-electron.js && electron-builder --mac dmg --universal -c.mac.identity=null",
+    "build:mac:signed": "node sdk/utils/bundle-electron.js && APPLE_KEYCHAIN_PROFILE=CCO-notary electron-builder --mac dmg --universal",
+    "build:win": "node sdk/utils/bundle-electron.js && electron-builder --win msi",
+    "build:linux": "node sdk/utils/bundle-electron.js && electron-builder --linux deb",
+    "build:all": "npm run build:mac && npm run build:win && npm run build:linux",
+    "dist": "npm run build:all"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "engines": {
+    "node": ">=22.16",
+    "npm": ">=10.0.0"
+  },
+  "signing": {
+    "appName": "AI Déjà Vu",
+    "bundleId": "app.hexstack.dejavu",
+    "minMacOS": "10.15",
+    "developerIdApplication": "Developer ID Application: Roman Chuvilev (A646WU4GA4)",
+    "notaryProfile": "CCO-notary"
+  },
+  "dependencies": {
+    "@huggingface/transformers": "^4.2.0"
+  },
+  "devDependencies": {
+    "@types/node": "^26.2.0",
+    "electron": "^44.0.0",
+    "typescript": "^7.0.2",
+    "electron-builder": "^26.15.3",
+    "esbuild": "^0.28.2"
+  },
+  "build": {
+    "appId": "app.hexstack.dejavu",
+    "productName": "AI Déjà Vu",
+    "directories": {
+      "output": "/.hexstack-app/ai-mentat-dejavu"
+    },
+    "artifactName": "dejavu-${version}.${ext}",
+    "electronVersion": "44.0.0",
+    "npmRebuild": false,
+    "files": [
+      "electron-main.bundle.cjs",
+      "site/",
+      "dist/",
+      "package.json"
+    ],
+    "extraMetadata": {
+      "main": "electron-main.bundle.cjs"
+    },
+    "mac": {
+      "category": "public.app-category.graphics-design",
+      "target": [
+        "dmg"
+      ],
+      "entitlements": "sdk/build/entitlements.mac.plist",
+      "entitlementsInherit": "sdk/build/entitlements.mac.plist"
+    },
+    "win": {
+      "target": [
+        "msi"
+      ]
+    },
+    "linux": {
+      "target": [
+        "deb"
+      ],
+      "category": "Graphics"
+    }
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/hexstack-apps/ai-mentat-dejavu.git"
+  },
+  "type": "module"
+}

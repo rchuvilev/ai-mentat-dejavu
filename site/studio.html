@@ -1,0 +1,328 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>AI Déjà Vu Studio — train on your own examples</title>
+<link rel="manifest" href="manifest.webmanifest">
+<meta name="theme-color" content="#58a6ff">
+<style>
+:root{--bg:#0d1117;--card:#161b22;--line:#30363d;--tx:#c9d1d9;--dim:#8b949e;
+      --blue:#58a6ff;--grn:#3fb950;--red:#f85149;--org:#f0883e}
+*{box-sizing:border-box}
+body{margin:0 auto;max-width:960px;background:var(--bg);color:var(--tx);padding:18px 14px 70px;
+ font:15px/1.6 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif}
+h1{font-size:22px;margin:.1em 0 .05em;letter-spacing:-.5px}
+h2{font-size:14.5px;margin:1.6em 0 .5em;padding-bottom:.3em;border-bottom:1px solid var(--line);
+ color:#fff;text-transform:uppercase;letter-spacing:.6px;font-weight:600}
+.sub{color:var(--dim);font-size:13px;margin-bottom:.5em}
+.card{background:var(--card);border:1px solid var(--line);border-radius:11px;padding:13px 14px;margin:11px 0}
+.g{color:var(--grn)}.r{color:var(--red)}.b{color:var(--blue)}.o{color:var(--org)}.dim{color:var(--dim)}
+button{background:var(--blue);border:0;color:#05080c;padding:9px 14px;border-radius:8px;
+ font-size:13.5px;font-weight:600;cursor:pointer}
+button.sec{background:#21262d;color:var(--tx);border:1px solid var(--line);font-weight:500}
+button.on{background:var(--red);color:#fff}
+button:disabled{background:#1b2029;color:#5a6472;cursor:not-allowed;opacity:.75}
+select,input[type=text],input[type=number]{background:#0d1117;border:1px solid var(--line);
+ color:var(--tx);border-radius:6px;padding:6px 8px;font-size:13px}
+input[type=number]{width:78px}
+input[type=range]{accent-color:var(--blue);vertical-align:middle}
+label{font-size:12.5px;color:var(--dim)}
+.row{display:flex;gap:9px;align-items:center;flex-wrap:wrap}
+.grid2{display:grid;gap:11px;grid-template-columns:repeat(auto-fit,minmax(240px,1fr))}
+#log{font:11.5px/1.55 ui-monospace,Menlo,monospace;white-space:pre-wrap;background:#010409;
+ border:1px solid var(--line);border-radius:9px;padding:10px;max-height:160px;overflow-y:auto}
+table{width:100%;border-collapse:collapse;font-size:12.5px}
+th,td{text-align:left;padding:5px 6px;border-bottom:1px solid var(--line)}
+th{color:var(--dim);font-size:10.5px;text-transform:uppercase;letter-spacing:.4px}
+.kpis{display:grid;gap:8px;grid-template-columns:repeat(4,1fr);margin-bottom:8px}
+.kpi{background:#0d1117;border:1px solid var(--line);border-radius:8px;padding:9px;text-align:center}
+.kpi .n{font-size:17px;font-weight:700}.kpi .l{font-size:9px;color:var(--dim);letter-spacing:.3px}
+.checks{font:11px/1.6 ui-monospace,monospace;margin-top:8px}
+video#cam{width:100%;max-width:320px;border-radius:9px;border:1px solid var(--line);background:#000;display:block}
+.camstage{position:relative;display:inline-block;max-width:320px;width:100%}
+.flipbtn{position:absolute;top:8px;right:8px;width:40px;height:40px;min-height:40px;
+ border-radius:50%;background:#000b;color:#fff;border:1px solid #ffffff33;font-size:17px;
+ padding:0;line-height:38px;text-align:center;cursor:pointer}
+#grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(66px,1fr));gap:6px;margin-top:10px}
+.cell{position:relative;border:1px solid var(--line);border-radius:7px;overflow:hidden;
+ line-height:0;background:#0d1117}
+.cell img{width:100%;display:block;aspect-ratio:1;object-fit:cover}
+.cell .aud{aspect-ratio:1;display:flex;align-items:center;justify-content:center;
+ font:10px ui-monospace,monospace;color:var(--blue);line-height:1.3;text-align:center}
+.cell span{position:absolute;bottom:0;left:0;right:0;background:#000c;font-size:8.5px;
+ text-align:center;color:#fff;line-height:1.5;overflow:hidden;white-space:nowrap}
+.cell .rm{position:absolute;top:2px;right:2px;background:#000c;color:#fff;border:0;
+ width:22px;height:22px;border-radius:50%;font-size:14px;padding:0;line-height:22px;
+ text-align:center;cursor:pointer}
+.chip{display:inline-block;background:#21262d;border:1px solid var(--line);border-radius:20px;
+ padding:3px 11px;font-size:12px;margin:3px 4px 3px 0;cursor:pointer}
+.chip b{color:var(--blue)}
+#meter{height:8px;background:#21262d;border-radius:5px;overflow:hidden;width:150px;display:inline-block;
+ vertical-align:middle}
+#meterBar{display:block;height:100%;background:var(--grn);width:0;transition:width .1s}
+.vhead{margin-bottom:8px}
+.bars{margin-top:10px;font:12px ui-monospace,monospace}
+.brow{display:flex;align-items:center;gap:8px;margin:5px 0}
+.bname{width:78px;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;color:var(--dim)}
+.brow.target .bname{color:var(--tx);font-weight:600}
+.btrack{position:relative;flex:1;height:14px;background:#21262d;border-radius:7px;overflow:hidden}
+.bfill{position:absolute;left:0;top:0;bottom:0;width:0;border-radius:7px;background:#3d4653;
+  transition:width .28s cubic-bezier(.4,0,.2,1),background-color .2s}
+.bfill.win{background:var(--blue)}
+.bfill.hit{background:var(--grn)}
+.bthr{position:absolute;top:-2px;bottom:-2px;width:2px;background:var(--org);opacity:.85}
+.bval{font-style:normal;color:var(--tx);width:52px;text-align:right;font-variant-numeric:tabular-nums}
+.shootbtn{display:block;width:100%;max-width:320px;margin-top:9px;padding:14px;font-size:15px}
+.filebtn{display:inline-block;padding:12px 15px;border:1px solid var(--line);
+  border-radius:8px;cursor:pointer;color:var(--tx);background:#21262d;font-size:13.5px}
+/* Android tap-target guidance is ~48dp; every control measured 27-35px tall.
+   Scoped to real controls, NOT every button: `min-height` always beats `height`,
+   so a blanket rule stretched the 22px thumbnail delete badge into a 44px oval
+   covering the whole preview. */
+.row button,.filebtn,#trainBtn,#runBtn,#loop,#clearSamples,#clearEv,#loadBtn,
+#exportBtn,.shootbtn{min-height:44px}
+select,input[type=text],input[type=number]{min-height:40px}
+pre#payload{background:#010409;border:1px solid var(--line);border-radius:8px;padding:10px;
+ font:11px/1.5 ui-monospace,monospace;overflow-x:auto;max-height:220px;margin:0}
+code{background:#1f2630;padding:1.5px 5px;border-radius:4px;font-size:12px;font-family:ui-monospace,monospace}
+.pill{display:inline-block;font-size:10px;padding:2px 8px;border-radius:20px;
+ border:1px solid var(--line);color:var(--dim);margin-left:6px;vertical-align:middle}
+#targets{display:flex;gap:12px;flex-wrap:wrap}
+#targets label{color:var(--tx);font-size:13px}
+a{color:var(--blue)}
+.steps{background:var(--card);border:1px solid var(--line);border-radius:9px;
+ padding:9px 12px;margin:13px 0 2px;font-size:12.5px}
+.steps.live{border-color:#2b6a3f}
+</style></head><body>
+
+<h1>AI Déjà Vu Studio <span class="pill">train on your own examples</span></h1>
+<div class="sub">Record or upload your own samples, label them, train a classifier,
+then run new inputs through it — every prediction fires a switchable
+<code>onMatched</code> / <code>onNotMatched</code> action.</div>
+<div class="sub">Everything is local: samples and models live in your browser's IndexedDB.
+Nothing is uploaded. <a href="./">← the shapes demo</a></div>
+
+<div id="steps" class="steps"></div>
+
+<h2>1 · Collect samples</h2>
+<div class="card">
+  <div class="row">
+    <label>type
+      <select id="modality">
+        <option value="image" selected>image (camera / files)</option>
+        <option value="audio">sound (mic / files)</option>
+      </select></label>
+    <label>project <input type="text" id="project" value="default" style="width:110px"></label>
+  </div>
+  <div class="row" style="margin-top:8px">
+    <label>features <select id="extractor" style="max-width:100%"></select></label>
+    <label>label <input type="text" id="label" placeholder="e.g. yes" style="width:110px"></label>
+  </div>
+
+  <div id="imgTools" style="margin-top:11px">
+    <div class="row">
+      <button id="camOn" class="sec">Camera on</button>
+      <button id="camOff" class="sec">Stop</button>
+      <label class="sec filebtn">Upload images
+        <input type="file" id="imgFile" accept="image/*" capture="environment" multiple hidden></label>
+    </div>
+    <div id="camWrap" style="display:none;margin-top:10px">
+      <div class="camstage">
+        <video id="cam" playsinline muted></video>
+        <button id="flip" class="flipbtn" style="display:none"
+                title="switch camera" aria-label="Switch between front and back camera">⇄</button>
+      </div>
+      <button id="shoot" class="shootbtn">Capture frame</button>
+    </div>
+  </div>
+
+  <div id="audTools" style="display:none;margin-top:11px">
+    <div class="row">
+      <button id="micOn" class="sec">Microphone on</button>
+      <button id="micOff" class="sec">Stop</button>
+      <label>clip ms <input type="number" id="clipMs" value="1200" min="300" step="100"></label>
+      <button id="rec">Record sample</button>
+      <label class="sec" style="display:inline-block;padding:8px 13px;border:1px solid var(--line);
+        border-radius:8px;cursor:pointer;color:var(--tx)">Upload audio
+        <input type="file" id="audFile" accept="audio/*" multiple hidden></label>
+    </div>
+    <div id="micWrap" style="display:none;margin-top:9px">
+      <span class="dim" style="font-size:11.5px">level</span>
+      <div id="meter"><span id="meterBar"></span></div>
+      <span id="meterVal" class="dim" style="font-size:11.5px"></span>
+    </div>
+  </div>
+
+  <div id="captureHint" class="dim" style="font-size:11.5px;margin-top:9px"></div>
+
+  <div style="margin-top:12px">
+    <div id="labelChips"></div>
+    <div id="trainability" style="font-size:12.5px;margin-top:6px"></div>
+    <div id="grid"></div>
+    <button id="clearSamples" class="sec" style="margin-top:10px">Clear this project</button>
+  </div>
+</div>
+
+<h2>2 · Train</h2>
+<div class="card">
+  <div class="row">
+    <button id="trainBtn" disabled>Train on my samples</button>
+    <span class="dim" style="font-size:12px">25% per label is held out for the test score</span>
+  </div>
+</div>
+<div class="card" id="metrics"><span class="dim">no model yet</span></div>
+
+<h2>3 · Stored models <span class="pill">IndexedDB</span></h2>
+<div class="card">
+  <div class="row">
+    <select id="modelSel" style="flex:1;min-width:170px" aria-label="Saved models"></select>
+    <button id="loadBtn" class="sec">Load</button>
+    <button id="exportBtn" class="sec">Export JSON</button>
+    <button id="exportJs" class="sec" title="Download a standalone .js detector: weights baked in, runs in browser, Node or Bun">Export JS</button>
+  </div>
+  <div class="dim" id="usage" style="font-size:11.5px;margin-top:8px"></div>
+</div>
+
+<h2>4 · Match rule &amp; actions</h2>
+<div class="card">
+  <div class="grid2">
+    <div>
+      <label>match when predicted label is</label>
+      <div id="targets" style="margin:6px 0 10px"><span class="dim">train a model first</span></div>
+      <label>and confidence ≥ <b id="thrLbl" class="b">70%</b></label>
+      <input type="range" id="thr" min="0" max="100" value="70" style="width:100%" aria-label="Confidence threshold percent">
+      <label>cooldown per branch (ms) <input type="number" id="cool" value="0" min="0" step="500"></label>
+    </div>
+    <div>
+      <label>onMatched
+        <select id="sinkM">
+          <option value="console" selected>console.log</option>
+          <option value="webhook">webhook</option>
+          <option value="both">both</option>
+          <option value="off">off</option>
+        </select></label>
+      <div style="height:8px"></div>
+      <label>onNotMatched
+        <select id="sinkN">
+          <option value="off" selected>off</option>
+          <option value="console">console.log</option>
+          <option value="webhook">webhook</option>
+          <option value="both">both</option>
+        </select></label>
+      <div style="height:10px"></div>
+      <label>webhook URL
+        <select id="hookMethod" style="margin-left:4px">
+          <option value="POST" selected>POST</option>
+          <option value="GET">GET</option>
+        </select></label>
+      <input type="text" id="hookUrl" placeholder="https://example.com/hook" aria-label="Webhook URL"
+        style="width:100%;margin-top:5px">
+      <div class="dim" style="font-size:11px;margin-top:5px">
+        Cross-origin endpoints need CORS. Failures are logged, never thrown.</div>
+    </div>
+  </div>
+</div>
+
+<h2>5 · Run new inputs</h2>
+<div class="card">
+  <div class="row">
+    <button id="runBtn" disabled>Classify now</button>
+    <label class="sec" style="display:inline-block;padding:8px 13px;border:1px solid var(--line);
+      border-radius:8px;cursor:pointer;color:var(--tx)">Test a file
+      <input type="file" id="testFile" accept="image/*,audio/*" hidden></label>
+    <button id="loop" class="sec">Start continuous</button>
+    <label>every ms <input type="number" id="loopMs" value="1500" min="300" step="100"></label>
+    <label title="Audio only: windows quieter than this are reported as silence
+instead of being forced into the nearest label">silence gate dB
+      <input type="number" id="gate" value="-45" min="-90" max="0" step="5"
+             aria-label="Silence gate in decibels for continuous audio"></label>
+  </div>
+  <div id="verdict" style="margin-top:12px"><span class="dim">no prediction yet</span></div>
+</div>
+
+<div class="grid2">
+  <div>
+    <h2>Payload</h2>
+    <div class="card" style="padding:0;border:0"><pre id="payload">—</pre></div>
+  </div>
+  <div>
+    <h2>Events <span class="pill">persisted</span></h2>
+    <div class="card">
+      <table><thead><tr><th>time</th><th>rule</th><th>label</th><th>conf</th><th>delivered</th></tr></thead>
+      <tbody id="events"></tbody></table>
+      <button id="clearEv" class="sec" style="margin-top:9px">Clear log</button>
+      <button id="selftest" class="sec" style="margin-top:9px" title="Trains on synthetic data with known answers and verifies the predicted label names are not swapped">Self test</button>
+      <button id="selftest" class="sec" style="margin-top:9px"
+              title="Trains on synthetic data with known answers and checks the predicted label names are not swapped">Self test</button>
+    </div>
+  </div>
+</div>
+
+<h2>Activity</h2>
+<div class="card"><div id="log">booting…</div></div>
+
+<h2>Notes</h2>
+<div class="card" style="font-size:13.5px">
+  <p style="margin:0 0 9px"><b>Binary yes/no is just two labels.</b> Type <code>yes</code>,
+  add examples, type <code>no</code>, add examples. Three or more labels work the same way —
+  aim for at least 3 examples each, and keep the counts roughly balanced (the trainability
+  line warns you when they are not).</p>
+  <p style="margin:0 0 9px"><b>Two feature options for images.</b> The fast hand-built
+  descriptor (116-d, ~5 ms) needs no download and works well when your classes differ in
+  colour, layout or texture. <b>DINOv2</b> is a real pretrained backbone (384-d, ~2 s per
+  image, one-time ~23 MB download, then cached by the browser) — the same idea as
+  Teachable Machine's frozen MobileNet, and much better at generalising from only a
+  handful of examples of real-world objects. Pick it from the <i>features</i> dropdown
+  before training. Feature vectors are cached per extractor, so switching and retraining
+  does not re-download anything.</p>
+  <p style="margin:0 0 9px"><b>Extractors per modality.</b> Images use a
+  116-d descriptor (colour grid, hue histogram, oriented gradients, edge density) — the
+  shapes demo's 26-d extractor assumes one bright blob on a dark field and measurably
+  underperforms on photos. Sound uses 200-d log-mel statistics: mean, spread, and a
+  3-segment time profile, normalised so a 10× volume change moves the vector far less than
+  a change of pitch does.</p>
+  <p style="margin:0"><b>The raw capture is stored, not just the vector.</b> That way the
+  samples survive an extractor change and you can see what you actually recorded. Feature
+  vectors are cached per extractor so retraining is fast.</p>
+</div>
+
+<script type="module">
+import { boot } from './dist/studio.js';
+boot().catch(e => {
+  document.getElementById('log').textContent = 'boot failed: ' + (e && e.message || e);
+});
+</script>
+
+<script>
+// Register the service worker. updateViaCache:'none' is essential — without it
+// the browser may serve sw.js itself from cache, the BUILD id never changes and
+// the whole busting scheme is inert.
+if ('serviceWorker' in navigator) {
+  addEventListener('load', () => {
+    navigator.serviceWorker.register('sw.js', { updateViaCache: 'none' })
+      .then(reg => {
+        // A new build is waiting: take over immediately rather than sitting
+        // behind until every tab closes.
+        reg.addEventListener('updatefound', () => {
+          const w = reg.installing;
+          if (!w) return;
+          w.addEventListener('statechange', () => {
+            if (w.state === 'installed' && navigator.serviceWorker.controller) {
+              w.postMessage('skipWaiting');
+            }
+          });
+        });
+        reg.update();
+      })
+      .catch(() => { /* SW is an enhancement; the app works without it */ });
+    // When the new worker takes control, reload ONCE so the page runs the
+    // freshly deployed modules.
+    let reloaded = false;
+    navigator.serviceWorker.addEventListener('controllerchange', () => {
+      if (reloaded) return;
+      reloaded = true;
+      location.reload();
+    });
+  });
+}
+</script>
+</body></html>

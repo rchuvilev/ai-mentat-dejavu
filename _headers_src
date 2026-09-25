@@ -1,0 +1,20 @@
+# Cloudflare Pages headers for AI Déjà Vu.
+#
+# The compiled modules in /dist are the whole problem: Pages defaults them to
+# max-age=14400, so a browser can import a four-hour-old build after a deploy.
+# That produced a missing extractor option and, once, a dead page from a stale
+# IndexedDB version constant. Revalidating them costs one conditional request
+# and removes the entire class of bug.
+#
+# sw.js must never be cached at all: if an old sw.js is served, the old BUILD id
+# stays live, the cache name never changes, and nothing ever busts.
+
+/sw.js
+  Cache-Control: no-cache, no-store, must-revalidate
+  Service-Worker-Allowed: /
+
+/manifest.webmanifest
+  Cache-Control: no-cache, must-revalidate
+
+/dist/*
+  Cache-Control: public, max-age=0, must-revalidate

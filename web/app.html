@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Teachable Machine — pure TS</title>
+<style>
+:root{--bg:#0d1117;--card:#161b22;--line:#30363d;--tx:#c9d1d9;--dim:#8b949e;
+      --blue:#58a6ff;--grn:#3fb950;--red:#f85149;--org:#f0883e}
+*{box-sizing:border-box}
+body{margin:0 auto;max-width:940px;background:var(--bg);color:var(--tx);padding:16px 13px 70px;
+ font:15px/1.6 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif}
+h1{font-size:21px;margin:.2em 0 .1em;letter-spacing:-.4px}
+h2{font-size:15.5px;margin:1.6em 0 .5em;padding-bottom:.3em;border-bottom:1px solid var(--line);color:#fff}
+.sub{color:var(--dim);font-size:13px;margin-bottom:1.1em}
+.card{background:var(--card);border:1px solid var(--line);border-radius:11px;padding:13px 14px;margin:11px 0}
+.g{color:var(--grn)}.r{color:var(--red)}.b{color:var(--blue)}.o{color:var(--org)}.dim{color:var(--dim)}
+button{background:var(--blue);border:0;color:#05080c;padding:9px 15px;border-radius:8px;
+ font-size:13.5px;font-weight:600;cursor:pointer}
+button.sec{background:#21262d;color:var(--tx);border:1px solid var(--line);font-weight:500}
+button:disabled{background:#21262d;color:var(--dim);cursor:default}
+input[type=number]{background:#0d1117;border:1px solid var(--line);color:var(--tx);
+ border-radius:6px;padding:6px 8px;width:62px;font-size:13px}
+#log{font:11.5px/1.5 ui-monospace,Menlo,monospace;white-space:pre-wrap;background:#010409;
+ border:1px solid var(--line);border-radius:9px;padding:10px;max-height:180px;overflow-y:auto}
+table.cm{width:100%;border-collapse:collapse;font-size:12.5px;margin:9px 0}
+table.cm th,table.cm td{text-align:left;padding:5px 6px;border-bottom:1px solid var(--line)}
+table.cm th{color:var(--dim);font-size:10.5px;text-transform:uppercase;letter-spacing:.4px}
+.rowh{display:flex;align-items:center;gap:8px;margin-bottom:9px}
+.tag{font-size:10.5px;padding:2px 7px;border-radius:20px;border:1px solid var(--line);color:var(--dim)}
+.kpis{display:grid;gap:8px;grid-template-columns:repeat(4,1fr);margin-bottom:6px}
+.kpi{background:#0d1117;border:1px solid var(--line);border-radius:8px;padding:8px;text-align:center}
+.kpi .n{font-size:17px;font-weight:700}.kpi .l{font-size:9px;color:var(--dim);letter-spacing:.3px}
+.checks{font:11.5px/1.6 ui-monospace,monospace;margin-top:8px}
+.thumbs{display:grid;grid-template-columns:repeat(auto-fill,minmax(52px,1fr));gap:4px;margin-top:9px}
+.th{position:relative;border:2px solid transparent;border-radius:5px;overflow:hidden;line-height:0}
+.th canvas{width:100%;display:block}
+.th.err{border-color:var(--red)}
+.th span{position:absolute;bottom:0;left:0;right:0;background:#000c;font-size:7.5px;text-align:center;color:#fff}
+.row{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+canvas#pad{border:1px solid var(--line);border-radius:8px;touch-action:none;background:#3c3c3c;
+ width:150px;height:150px}
+code{background:#1f2630;padding:1.5px 5px;border-radius:4px;font-size:12px;font-family:ui-monospace,monospace}
+</style></head><body>
+
+<h1>Teachable Machine — pure TypeScript</h1>
+<div class="sub">Every module here is shared with the CLI: same dataset generator, same
+extractors, same classifier, same integrity checks. <code>node dist/cli.js</code> runs
+the identical logic headless.</div>
+
+<h2>Run</h2>
+<div class="card">
+  <div class="row">
+    <label class="dim" style="font-size:12.5px">train/class <input type="number" id="nTrain" value="30" min="5" max="60"></label>
+    <label class="dim" style="font-size:12.5px">test/class <input type="number" id="nTest" value="12" min="4" max="30"></label>
+  </div>
+  <div class="row" style="margin-top:10px">
+    <button id="runFast">Run v1 + v2 (instant)</button>
+    <button id="runBb" class="sec">Add DINOv2 (slow, ~2 s/img)</button>
+  </div>
+</div>
+<div class="card"><div id="log">booting…</div></div>
+
+<h2>Why v1 fails — measured</h2>
+<div class="card" id="rot"></div>
+
+<h2>Results</h2>
+<div id="results"></div>
+
+<h2>Draw your own</h2>
+<div class="card">
+  <div class="dim" style="font-size:12.5px;margin-bottom:8px">Draw a filled circle, square or
+  triangle. Classified with the 26-d rotation-invariant extractor — no model download.</div>
+  <canvas id="pad" width="128" height="128"></canvas>
+  <div class="row" style="margin-top:9px">
+    <button class="sec" id="clr">clear</button>
+    <button class="sec" id="cls">classify</button>
+    <span id="myres" style="font-size:14px"></span>
+  </div>
+</div>
+
+<script type="module">
+import { boot } from '../dist/ui.js';
+boot();
+</script>
+</body></html>

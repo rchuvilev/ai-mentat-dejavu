@@ -1,0 +1,18 @@
+node_modules/
+dist/
+site/dist/
+_python_legacy/
+web/_scratch/
+emb_cache.jsonl
+models/
+transformers.web.js
+web/ort/
+*.log
+.cache/
+probe*.mjs
+hooktest.mjs
+dinov2_result.json
+_scratch_probes/
+
+# esbuild output
+/electron-main.bundle.cjs
